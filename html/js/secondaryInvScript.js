@@ -399,6 +399,8 @@ INVENTORY.SECONDARY = {
                 $("#secondInventoryElement").append(`<div class='item' data-group='0'></div>`);
             }
         }
+
+        S.REFRESH_CURRENT_CAPACITY();
     },
 
     ITEM_ADDED: function (item) {
@@ -424,6 +426,8 @@ INVENTORY.SECONDARY = {
                 return !$(this).data("item");
             }).last().remove();
         }
+
+        S.REFRESH_CURRENT_CAPACITY();
 
         $newEl.draggable({
             helper: function (event) {
@@ -461,6 +465,8 @@ INVENTORY.SECONDARY = {
         if (total < minSlots) {
             $inv.append(`<div class='item' data-group='0'></div>`);
         }
+
+        this.REFRESH_CURRENT_CAPACITY();
     },
 
     ITEM_UPDATED: function (id, count) {
@@ -475,6 +481,30 @@ INVENTORY.SECONDARY = {
             d.count = count;
             $el.data("item", d);
         }
+
+        this.REFRESH_CURRENT_CAPACITY();
+    },
+
+    CALCULATE_CURRENT_CAPACITY: function () {
+        let total = 0;
+        $("#secondInventoryElement .item").each(function () {
+            const d = $(this).data("item");
+            if (!d) return;
+
+            if (SECONDARY_USES_WEIGHT) {
+                total += UTILS.GET_ITEM_TOTAL_WEIGHT_VALUE(d);
+            } else if (d.type === "item_weapon") {
+                total += 1;
+            } else {
+                const c = Number(d.count || 0);
+                total += Number.isFinite(c) && c > 0 ? c : 0;
+            }
+        });
+        return total;
+    },
+
+    REFRESH_CURRENT_CAPACITY: function () {
+        this.SET_CURRENT_CAPACITY(this.CALCULATE_CURRENT_CAPACITY());
     },
 
     SET_TITLE: function (title) {
@@ -484,18 +514,24 @@ INVENTORY.SECONDARY = {
 
     SET_CURRENT_CAPACITY: function (cap) {
         const cur = document.getElementById("current-cap-value");
-        if (cur) cur.innerHTML = cap;
+        if (cur) cur.innerHTML = UTILS.FORMAT_CAPACITY_VALUE(cap, SECONDARY_USES_WEIGHT);
         UTILS.APPLY_INV_CAPACITY_WARNING($("#secondInventoryHud .capacity"), cap, SECONDARY_CAPACITY);
     },
 
     SET_CAPACITY: function (cap, weight) {
         $(".capacity").show();
-        const capEl = document.getElementById("capacity-value");
-        if (capEl) capEl.innerHTML = weight ? weight + " " + Config.WeightMeasure : cap;
 
         const w = weight != null && weight !== "" && !Number.isNaN(Number(weight)) ? Number(weight) : NaN;
-        const m = Number.isFinite(w) ? w : Number(cap);
+        SECONDARY_USES_WEIGHT = Number.isFinite(w) && w > 0;
+        const m = SECONDARY_USES_WEIGHT ? w : Number(cap);
         SECONDARY_CAPACITY = Number.isFinite(m) && m > 0 ? m : null;
+
+        const capEl = document.getElementById("capacity-value");
+        if (capEl) {
+            capEl.innerHTML = SECONDARY_USES_WEIGHT
+                ? `${UTILS.FORMAT_CAPACITY_VALUE(SECONDARY_CAPACITY, true)} ${Config.WeightMeasure}`
+                : UTILS.FORMAT_CAPACITY_VALUE(SECONDARY_CAPACITY, false);
+        }
 
         const curNode = document.getElementById("current-cap-value");
         const currentNum = curNode != null ? parseFloat(String(curNode.textContent || "0").trim(), 10) : 0;
