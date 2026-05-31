@@ -1,5 +1,6 @@
 const CAPACITY_NEAR_FULL_RATIO = 0.85;
 let SECONDARY_CAPACITY = 0;
+let SECONDARY_USES_WEIGHT = false;
 
 const RARITY_THEME = {
     1: { labelKey: "rarity1", border: "#94a3b8", inset: "rgba(148, 163, 184, 0.35)" },
@@ -70,6 +71,34 @@ const UTILS = {
 
     GET_ITEM_WEIGHT: function (weight, count) {
         return weight != null ? `<br>${LANGUAGE.labels?.weight} ${(weight * count).toFixed(2)} ${Config.WeightMeasure}` : `<br>${LANGUAGE.labels?.weight} ${(count / 4).toFixed(2)} ${Config.WeightMeasure}`;
+    },
+
+
+    GET_ITEM_UNIT_WEIGHT_VALUE: function (item) {
+        if (!item || typeof item !== "object") return 0;
+
+        const rawWeight = item.metadata?.weight != null && item.metadata.weight !== ""
+            ? item.metadata.weight
+            : item.weight != null && item.weight !== ""
+                ? item.weight
+                : 0;
+
+        const weight = Number(rawWeight);
+        return Number.isFinite(weight) ? weight : 0;
+    },
+
+    GET_ITEM_TOTAL_WEIGHT_VALUE: function (item) {
+        if (!item || typeof item !== "object") return 0;
+        const count = item.type === "item_weapon" ? 1 : Number(item.count || 0);
+        const safeCount = Number.isFinite(count) && count > 0 ? count : 0;
+        return this.GET_ITEM_UNIT_WEIGHT_VALUE(item) * safeCount;
+    },
+
+    FORMAT_CAPACITY_VALUE: function (value, usesWeight) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "0";
+        if (usesWeight) return n.toFixed(1);
+        return String(Math.max(0, Math.floor(n)));
     },
 
     GET_GROUP_KEY: function (group) {
