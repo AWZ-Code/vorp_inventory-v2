@@ -3066,19 +3066,47 @@ local InventoryService <const> = {
 
 			local needed <const> = recipe.NEEDED
 			local reward <const> = recipe.REWARD
-			local idsToRemove <const> = {}
+			local itemsByName <const> = {}
+			local totalsByName <const> = {}
+			local itemsToRemove <const> = {}
 
+			-- Group owned ingredients by item name, because a required amount can be split across multiple stacks.
 			for itemId, itemData in pairs(userInventory) do
 				local itemName <const> = itemData:getName()
-				local itemAmount <const> = itemData:getCount()
 				local itemNeeded <const> = needed[itemName]
 
-				if itemNeeded and itemAmount >= itemNeeded then
-					table.insert(idsToRemove, itemId)
+				if itemNeeded then
+					itemsByName[itemName] = itemsByName[itemName] or {}
+					totalsByName[itemName] = (totalsByName[itemName] or 0) + itemData:getCount()
+					table.insert(itemsByName[itemName], {
+						id = itemId,
+						count = itemData:getCount(),
+					})
 				end
 			end
 
-			if #idsToRemove == 0 then
+			-- Validate every required ingredient before giving the reward.
+			for itemName, amountNeeded in pairs(needed) do
+				if (totalsByName[itemName] or 0) < amountNeeded then
+					return cb(false)
+				end
+			end
+
+			-- Build the exact removal list with quantities, not only item ids.
+			for itemName, amountNeeded in pairs(needed) do
+				local remaining = amountNeeded
+				for _, item in ipairs(itemsByName[itemName] or {}) do
+					if remaining <= 0 then break end
+					local amountToRemove <const> = math.min(item.count, remaining)
+					table.insert(itemsToRemove, {
+						id = item.id,
+						amount = amountToRemove,
+					})
+					remaining = remaining - amountToRemove
+				end
+			end
+
+			if #itemsToRemove == 0 then
 				return cb(false)
 			end
 
@@ -3109,8 +3137,8 @@ local InventoryService <const> = {
 				end
 			end
 
-			for _, itemId in ipairs(idsToRemove) do
-				INVENTORY_API.MAIN.SUB_ITEM_BY_ID(source, itemId)
+			for _, item in ipairs(itemsToRemove) do
+				INVENTORY_API.MAIN.SUB_ITEM_BY_ID(source, item.id, nil, nil, item.amount)
 			end
 
 			return cb(true)
