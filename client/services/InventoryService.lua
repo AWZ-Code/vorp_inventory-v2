@@ -102,6 +102,14 @@ local inventory <const> = {
 		end
 
 		NUI_SERVICE.INVENTORY.UPDATE_WEAPON(id)
+		
+		if IS_INV_OPEN then
+			SetTimeout(150, function()
+				if IS_INV_OPEN then
+					NUI_SERVICE.INVENTORY.GET_LOAD()
+				end
+			end)
+		end
 	end,
 	SET_WEAPON_CUSTOM_LABEL = function(id, label)
 		local weapon <const> = PLAYER_INVENTORY.WEAPONS[id]
