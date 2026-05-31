@@ -18,6 +18,25 @@ const SECOND_INVENTORY_GRID_ROWS = 6;
 const SECOND_INVENTORY_GRID_SLOTS = MAIN_INVENTORY_SLOT_COLS * SECOND_INVENTORY_GRID_ROWS;
 
 INVENTORY.MAIN = {
+    CALCULATE_CURRENT_WEIGHT: function () {
+        let total = 0;
+        Object.values(mainInventoryItemsCache || {}).forEach(function (item) {
+            total += UTILS.GET_ITEM_TOTAL_WEIGHT_VALUE(item);
+        });
+        return total;
+    },
+
+    REFRESH_CURRENT_WEIGHT: function () {
+        const total = this.CALCULATE_CURRENT_WEIGHT();
+        checkxy = UTILS.FORMAT_CAPACITY_VALUE(total, true);
+
+        const $c = $("#check .inv-weight-text");
+        if ($c.length) {
+            $c.text(`${checkxy}/${infoxy} ${Config.WeightMeasure}`);
+        }
+        UTILS.APPLY_INV_CAPACITY_WARNING($("#check"), total, infoxy);
+    },
+
     DROP: {
         MONEY: function (isAll) {
             INVENTORY.DIALOG({ name: "money", id: 0 }, "item_money", "drop", isAll);
@@ -2120,7 +2139,10 @@ INVENTORY.MAIN = {
 
         if (activeMainGroupFilter !== 'all') {
             const filterSet = activeMainGroupFilterTypes || [];
-            if (!filterSet.includes(INVENTORY.MAIN.GET_ITEM_FILTER_GROUP(item))) return;
+            if (!filterSet.includes(INVENTORY.MAIN.GET_ITEM_FILTER_GROUP(item))) {
+                INVENTORY.MAIN.REFRESH_CURRENT_WEIGHT();
+                return;
+            }
         }
 
         const domId = INVENTORY.MAIN.GET_ITEM_DOM_ID(item);
@@ -2196,6 +2218,8 @@ INVENTORY.MAIN = {
             INVENTORY.MAIN.INIT_INV_SORT();
             INVENTORY.MAIN.QUEUE_LAYOUT_SAVE();
         }
+
+        INVENTORY.MAIN.REFRESH_CURRENT_WEIGHT();
     },
 
     WEAPON_USED_UPDATE: function (id, used, used2, weaponLiveStatus) {
@@ -2269,6 +2293,8 @@ INVENTORY.MAIN = {
 
         INVENTORY.MAIN.CLEAR_INV_SORT();
         INVENTORY.MAIN.INIT_INV_SORT();
+        INVENTORY.MAIN.QUEUE_LAYOUT_SAVE();
+        INVENTORY.MAIN.REFRESH_CURRENT_WEIGHT();
     },
 
     // change the speed of the wheel for smother changes
@@ -2705,6 +2731,7 @@ $("document").ready(function () {
                     return !!$(this).data("item");
                 }));
             }
+            INVENTORY.MAIN.REFRESH_CURRENT_WEIGHT();
         } else if (event.data.action == "setSecondInventoryItems") {
             $("#inv-controls-hint").fadeIn(200);
             UTILS.UPDATE_HINT_VISIBILITY();
@@ -2715,17 +2742,7 @@ $("document").ready(function () {
             }));
 
             INVENTORY.SECONDARY.SCHEDULE_GROUP_STRIP();
-
-            let l = event.data.itemList.length
-            let itemlist = event.data.itemList
-            let total = 0
-            let p = 0
-            for (p; p < l; p++) {
-                total += Number(itemlist[p].count)
-            }
-            let weight = null
-            //amount of items in Inventory
-            INVENTORY.SECONDARY.SET_CURRENT_CAPACITY(total);
+            INVENTORY.SECONDARY.REFRESH_CURRENT_CAPACITY();
         } else if (event.data.action == "mainItemUpdate") {
             INVENTORY.MAIN.MAIN_UPDATE_ITEM(event.data.item);
             WEAPON_ATTACHMENTS.MAIN_ITEM_UPDATE(event.data.item);
